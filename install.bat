@@ -10,13 +10,15 @@ echo.
 :: Source directory (where this batch file lives)
 set "SOURCE=%~dp0"
 
-:: Target: user-level .claude directory
-set "TARGET=%USERPROFILE%\.claude"
-set "TOKEN_FILE=%TARGET%\.github_token"
+:: Target: user-level .claude\skills directory
+set "CLAUDE_DIR=%USERPROFILE%\.claude"
+set "TARGET=%CLAUDE_DIR%\skills"
+set "TOKEN_FILE=%CLAUDE_DIR%\.github_token"
 
 :: -----------------------------------------------
 :: 1. Create target directories
 :: -----------------------------------------------
+if not exist "%CLAUDE_DIR%" mkdir "%CLAUDE_DIR%"
 if not exist "%TARGET%" mkdir "%TARGET%"
 if not exist "%TARGET%\scripts" mkdir "%TARGET%\scripts"
 if not exist "%TARGET%\references" mkdir "%TARGET%\references"
@@ -126,10 +128,10 @@ echo.
 echo  [3/3] Installation complete!
 echo.
 echo  ============================================
-echo   Installed files:
-echo     %TARGET%\SKILL.md
-echo     %TARGET%\scripts\  (4 scripts)
-echo     %TARGET%\references\  (6 rule files)
+echo   Installed to: %TARGET%
+echo     SKILL.md
+echo     scripts\  (4 scripts)
+echo     references\  (6 rule files)
 echo.
 if exist "%TOKEN_FILE%" (
     echo   Token: saved at %TOKEN_FILE%

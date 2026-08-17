@@ -23,8 +23,8 @@ until the author addresses them. Clean PRs get an `APPROVE`.
   If the token is missing or expired, the scripts will show an error — run `install.bat` from the
   osos-code-review repo to set up or refresh the token.
 - **Tooling:** `curl` and `jq` must be present (the scripts use them).
-- **Install:** Clone the repo and run `install.bat`. It copies files to `~/.claude/` and saves the token.
-- Scripts live in `~/.claude/scripts/`. Reference rules live in `~/.claude/references/`.
+- **Install:** Clone the repo and run `install.bat`. It copies files to `~/.claude/skills/` and saves the token.
+- Scripts live in `~/.claude/skills/scripts/`. Reference rules live in `~/.claude/skills/references/`.
 
 ## 1. Parse the PR URL
 
@@ -34,7 +34,7 @@ From a URL like `https://github.com/<owner>/<repo>/pull/<number>` extract `owner
 ## 2. Fetch the PR
 
 ```bash
-bash $HOME/.claude/scripts/fetch_pr.sh <owner> <repo> <number>
+bash $HOME/.claude/skills/scripts/fetch_pr.sh <owner> <repo> <number>
 ```
 
 Output has three sections: `===META===` (title, body, author, head_sha, base/head refs, counts),
@@ -43,7 +43,7 @@ Read all three. If the script errors (401/404), relay the message and stop.
 
 ## 3. Load only the relevant rulebooks
 
-All rules are in `~/.claude/references/`. Load by what the diff actually touches — don't load everything by reflex:
+All rules are in `~/.claude/skills/references/`. Load by what the diff actually touches — don't load everything by reflex:
 
 | If the PR touches… | Load |
 |---|---|
@@ -107,7 +107,7 @@ Pick the `event` based on findings:
 ```
 
 ```bash
-bash $HOME/.claude/scripts/post_review.sh <owner> <repo> <number> /tmp/osos_review.json
+bash $HOME/.claude/skills/scripts/post_review.sh <owner> <repo> <number> /tmp/osos_review.json
 ```
 
 If GitHub rejects a comment for targeting a line not in the diff, move that finding into `body` and retry.
@@ -115,7 +115,7 @@ If GitHub rejects a comment for targeting a line not in the diff, move that find
 **Summary only** → write the markdown to a file and:
 
 ```bash
-bash $HOME/.claude/scripts/post_comment.sh <owner> <repo> <number> /tmp/osos_summary.md
+bash $HOME/.claude/skills/scripts/post_comment.sh <owner> <repo> <number> /tmp/osos_summary.md
 ```
 
 Report the posted comment/review URL back to the reviewer.
