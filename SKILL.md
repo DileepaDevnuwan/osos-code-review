@@ -13,26 +13,18 @@ description: >-
 
 # OSOS Code Review
 
-Turn a GitHub PR link into a standards-based review with actionable feedback. When issues are
-found the review **requests changes** (`REQUEST_CHANGES`) so the PR is blocked from merging
-until the author addresses them. Clean PRs get an `APPROVE`.
+PR review against OSOS standards. Issues → `REQUEST_CHANGES` (blocks merge). Clean → `APPROVE`.
 
 ## 0. Preconditions
 
-- **Auth:** The GitHub token is auto-loaded from `~/.claude/.github_token` (set up by `install.bat`).
-  If the token is missing or expired, the scripts will show an error — run `install.bat` from the
-  osos-code-review repo to set up or refresh the token.
-- **Tooling:** `curl` and `jq` must be present (the scripts use them).
-- **Install:** Clone the repo and run `install.bat`. It copies files to `~/.claude/skills/osos-code-review/` and saves the token.
-- **Model:** This skill ships with detailed rules and guidelines — a smaller model handles it well.
-  Use **Sonnet** (`claude-sonnet-4-6`) or **Haiku** (`claude-haiku-4-5-20251001`) to save cost.
-  Switch before reviewing: `/model sonnet` or `/model haiku`.
-- Scripts live in `~/.claude/skills/osos-code-review/scripts/`. Reference rules live in `~/.claude/skills/osos-code-review/references/`.
+- **Auth:** Auto-loaded from `~/.claude/.github_token`. If missing/expired, run `install.bat`.
+- **Tooling:** `curl`, `jq` required.
+- **Model:** Detailed rules ship with this skill — use `/model sonnet` or `/model haiku` to save cost.
+- **Paths:** Scripts: `~/.claude/skills/osos-code-review/scripts/` | Rules: `~/.claude/skills/osos-code-review/references/`
 
 ## 1. Parse the PR URL
 
-From a URL like `https://github.com/<owner>/<repo>/pull/<number>` extract `owner`, `repo`,
-`number`. Also accept the shorthand `<owner>/<repo>#<number>`. If you can't get all three, ask.
+Extract `owner`, `repo`, `number` from `https://github.com/<owner>/<repo>/pull/<number>` or `<owner>/<repo>#<number>`. If unclear, ask.
 
 ## 2. Fetch the PR
 
@@ -40,9 +32,7 @@ From a URL like `https://github.com/<owner>/<repo>/pull/<number>` extract `owner
 bash $HOME/.claude/skills/osos-code-review/scripts/fetch_pr.sh <owner> <repo> <number>
 ```
 
-Output has three sections: `===META===` (title, body, author, head_sha, base/head refs, counts),
-`===DIFF===` (full unified diff), `===FILES===` (JSON array of `{path,status,additions,deletions,patch}`).
-Read all three. If the script errors (401/404), relay the message and stop.
+Returns `===META===` (JSON), `===DIFF===` (unified diff), `===FILES===` (file list with add/delete counts). Read all three. On error (401/404), relay and stop.
 
 ## 3. Load only the relevant rulebooks
 
@@ -60,147 +50,75 @@ When unsure, load more rather than fewer. Read the files with the `view` tool be
 
 ## 4. Review the diff
 
-Go through each changed hunk and check it against the loaded rules. For every real issue produce a finding:
+Check each hunk against loaded rules. Per finding:
 
-- **severity** — 🔴 Blocker (correctness/security/data-integrity: e.g. TX-2 no rollback, SEC-2 SQL injection, NET-2 `.Result`, ARCH-Q2 mixed read/write), 🟡 Should-fix (violates a standard, works but wrong), 🔵 Nit (style/naming).
-- **file + line** — the line **in the new file** (RIGHT side of the diff). Inline comments may ONLY target lines that appear as added/changed context in the PR's diff. If an issue is about something not on a diff line (missing test, PR scope, a whole-file concern), put it in the summary instead, not inline.
-- **rule id** — cite it (e.g. `TX-2`, `NAME-C2`) so the author can look it up.
-- **why + fix** — one or two sentences, constructive, with the corrected snippet when short.
+- **severity** — 🔴 Blocker (correctness/security/data-loss), 🟡 Should-fix (violates standard), 🔵 Nit (style).
+- **file + line** — RIGHT side of diff only. Non-diff concerns (missing test, PR scope) go in summary, not inline.
+- **rule id** — cite it (e.g. `TX-2`, `NAME-C2`).
+- **why + fix** — 1-2 sentences, constructive, with corrected snippet when short.
 
-Discipline that keeps this trustworthy:
-- **Precision over volume.** Only flag things you're confident about from the diff. You see a partial file; if a call *might* be fine given code outside the diff, say "if X isn't handled elsewhere…" or skip it. False positives on a junior's PR erode trust fast.
-- **Group repeats.** If the same nit appears 10 times, make one inline comment on the first and note "same applies elsewhere" — don't spam.
-- **Blockers are rare.** Reserve 🔴 for genuine correctness/security/data-loss issues.
-- **Be kind and specific.** The team's own standard says give *constructive* feedback. No scolding; explain the why.
+Discipline:
+- **Precision over volume.** Only flag what you're confident about. Partial file → "if X isn't handled elsewhere…" or skip. False positives erode trust.
+- **Group repeats.** Same nit 10 times → one inline comment + "same applies elsewhere".
+- **Blockers are rare.** Reserve 🔴 for genuine correctness/security/data-loss.
+- **Be kind.** Constructive feedback, no scolding.
 
 ## 5. Show the reviewer first — never post silently
 
-Present the findings in chat, grouped by severity, each as `severity [rule] file:line — issue → fix`.
-Then propose a short summary verdict (e.g. "2 blockers, 3 should-fix, 4 nits — recommend changes before merge"
-or "looks clean, minor nits only"). Then ask how to proceed:
-
-- **Post everything** (inline comments + summary), or
-- **Post selected** (they name which), or
-- **Summary only** (one comment, no inline), or
-- **Don't post** (they'll act on it themselves).
-
-Default to waiting for their choice. Do not post without an explicit go-ahead.
+Present findings grouped by severity: `severity [rule] file:line — issue → fix`.
+Propose a verdict, then ask: **Post everything** / **Post selected** / **Summary only** / **Don't post**.
+Do not post without explicit go-ahead.
 
 ## 6. Post (only after approval)
 
-**Inline + summary** → build a GitHub review payload and post it.
+**event:** Any 🔴/🟡 → `REQUEST_CHANGES` | Only 🔵/none → `APPROVE`
 
-Pick the `event` based on findings:
-
-| Findings | `event` |
-|---|---|
-| Any 🔴 Blocker **or** 🟡 Should-fix | `REQUEST_CHANGES` — blocks the PR until resolved |
-| Only 🔵 Nits (or none) | `APPROVE` — approves with optional nit comments |
-
-```jsonc
-// /tmp/osos_review.json
-{
-  "event": "REQUEST_CHANGES",      // or "APPROVE" — see table above
-  "body": "### OSOS standards review\n\n**Summary:** …\n\n🔴 Blockers: N  🟡 Should-fix: N  🔵 Nits: N\n\n<anything not anchorable inline>",
-  "comments": [
-    { "path": "Modules/Lnd/Lnd.Application/PathwayService.cs", "line": 42, "side": "RIGHT",
-      "body": "🟡 **[NAME-C2]** Private field should be camelCase without a leading underscore.\n```csharp\nprivate readonly string studentName;\n```" }
-  ]
-}
-```
+Write `/tmp/osos_review.json` with `{ event, body, comments: [{ path, line, side:"RIGHT", body }] }`.
 
 ```bash
 bash $HOME/.claude/skills/osos-code-review/scripts/post_review.sh <owner> <repo> <number> /tmp/osos_review.json
 ```
 
-If GitHub rejects a comment for targeting a line not in the diff, move that finding into `body` and retry.
+If GitHub rejects a line target, move that finding into `body` and retry.
 
-**Summary only** → write the markdown to a file and:
+**Summary only** → write markdown to file:
 
 ```bash
 bash $HOME/.claude/skills/osos-code-review/scripts/post_comment.sh <owner> <repo> <number> /tmp/osos_summary.md
 ```
 
-Report the posted comment/review URL back to the reviewer.
+Report the posted URL back.
 
 ## 7. Re-review (follow-up after fixes)
 
-When someone asks to **re-review**, **re-check**, or **verify fixes** on a PR that was previously
-reviewed (e.g. "check if they fixed the issues on PR #123", "re-review this PR"):
+Triggered by "re-review", "re-check", "verify fixes" on a previously reviewed PR.
 
-### 7a. Fetch current diff + previous review comments
-
-Run both in parallel:
+**7a.** Fetch current diff + previous comments (run in parallel):
 
 ```bash
 bash $HOME/.claude/skills/osos-code-review/scripts/fetch_pr.sh <owner> <repo> <number>
-```
-
-```bash
 bash $HOME/.claude/skills/osos-code-review/scripts/fetch_review_comments.sh <owner> <repo> <number>
 ```
 
-The second script returns `===REVIEWS===` (review states/bodies) and `===REVIEW_COMMENTS===`
-(inline comments with file, line, body, and thread info).
+**7b.** For each prior `REQUEST_CHANGES` inline comment, check the current diff:
+- **Resolved** — issue fixed correctly
+- **Partially addressed** — attempted but incomplete or introduced new issue
+- **Not addressed** — unchanged or same problem remains
 
-### 7b. Check each previous comment
+Flag any new issues from the fixes (same format as step 4).
 
-For every inline comment from a prior `REQUEST_CHANGES` review:
+**7c.** Present a status table, then verdict:
+- All resolved + no new issues → `APPROVE`
+- Any unresolved or new → `REQUEST_CHANGES`
 
-1. Find the file and area in the **current** diff.
-2. Determine the status:
-   - **Resolved** — the code was changed and the issue is fixed correctly.
-   - **Partially addressed** — an attempt was made but the fix is incomplete or introduces a new issue.
-   - **Not addressed** — the code is unchanged or the same problem remains.
-3. If the fix introduced a **new** issue, flag it as a new finding (same severity/rule format as step 4).
+Ask before posting (same as step 5). Summary body should say "Follow-up review" with resolved/unresolved/new counts.
 
-### 7c. Present the re-review summary
+## Comment style
 
-Show a table to the reviewer:
+Inline: `{severity} **[{RULE-ID}]** {problem}. {why}. {corrected snippet if short}`
+Summary: verdict → severity counts → non-inline notes. Keep scannable.
 
-```
-| # | Original comment                | File         | Status              |
-|---|--------------------------------|--------------|---------------------|
-| 1 | [ARCH-S1] Duplicate endpoints  | DI.cs:65     | Resolved            |
-| 2 | [PERF-5] StringComparison      | Service.cs   | Partially addressed |
-| 3 | [ARCH-H1] IHttpContextAccessor | Service.cs   | Not addressed       |
-```
+## Scope
 
-Then a verdict:
-- **All resolved + no new issues** → recommend posting `APPROVE`
-- **Any unresolved or new issues** → recommend posting `REQUEST_CHANGES` with updated summary
-
-Ask the reviewer how to proceed (same options as step 5) before posting.
-
-### 7d. Post the follow-up review
-
-Use the same posting mechanism (step 6). The summary body should reference it as a **follow-up review**:
-
-```
-### OSOS Standards Re-review — PR #<number>
-
-**Follow-up on previous review.**
-
-Resolved: N | Partially addressed: N | Not addressed: N | New issues: N
-
-<details per unresolved/new items>
-```
-
-## Comment style template
-
-Keep each inline comment tight:
-
-> {severity} **[{RULE-ID}]** {one-line problem}. {optional: why it matters in one clause}.
-> ```csharp
-> {short corrected snippet, if helpful}
-> ```
-
-Summary body should open with the verdict, then the severity counts, then any non-inline notes
-(missing tests, PR scope/commit hygiene, cross-file concerns). Keep it scannable.
-
-## Scope notes
-
-- Backend-focused (.NET/C#/EF Core/PostgreSQL). If a PR is mostly Angular/frontend, say so and
-  review only what these rules cover.
-- You review the diff, not the whole repo — call out when a proper judgement would need more context.
-- When blockers or should-fix issues are found, the review uses `REQUEST_CHANGES` to block the PR from merging until addressed.
+- Backend only (.NET/C#/EF Core/PostgreSQL). Frontend PRs → say so, review only what rules cover.
+- Review the diff, not the whole repo — call out when more context is needed.

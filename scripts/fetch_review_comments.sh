@@ -50,13 +50,12 @@ echo "===REVIEWS==="
 }]'
 
 echo "===REVIEW_COMMENTS==="
-# All inline review comments (with file path, line, diff hunk, and reply threading)
+# Inline review comments — only fields needed for re-review (no diff_hunk, it's in the full diff)
 {
   for page in 1 2 3; do
     curl -s "${AUTH[@]}" -H "Accept: application/vnd.github+json" \
       "${API}/comments?per_page=100&page=${page}"
   done
 } | jq -s 'add | [.[] | {
-  id, user: .user.login, path, line, original_line,
-  diff_hunk, body, created_at, updated_at, in_reply_to_id
+  id, user: .user.login, path, line, body, in_reply_to_id
 }]'

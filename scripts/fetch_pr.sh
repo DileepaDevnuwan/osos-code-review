@@ -55,10 +55,10 @@ echo "===DIFF==="
 curl -s "${AUTH[@]}" -H "Accept: application/vnd.github.v3.diff" "$API"
 
 echo "===FILES==="
-# Paginate up to 300 files (3 pages of 100).
+# File list only (no patch — the full diff is already in ===DIFF===).
 {
   for page in 1 2 3; do
     curl -s "${AUTH[@]}" -H "Accept: application/vnd.github+json" \
       "${API}/files?per_page=100&page=${page}"
   done
-} | jq -s 'add | map({ path: .filename, status, additions, deletions, patch })'
+} | jq -s 'add | map({ path: .filename, status, additions, deletions })'
