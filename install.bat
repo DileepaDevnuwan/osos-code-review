@@ -82,14 +82,24 @@ if exist "%TOKEN_FILE%" (
 )
 
 if "!NEED_TOKEN!"=="1" (
-    echo        Enter your GitHub Personal Access Token
-    echo        ^(classic PAT with 'repo' scope^):
+    echo        A GitHub token is REQUIRED for the skill to work.
+    echo        Create a classic PAT with 'repo' scope at:
+    echo        https://github.com/settings/tokens
     echo.
+
+    :ask_token
     set /p "NEW_TOKEN=        Token: "
 
     if "!NEW_TOKEN!"=="" (
         echo.
-        echo        WARNING: No token entered. You can run install.bat again later.
+        echo        ERROR: Token is required. The skill cannot work without it.
+        echo.
+        set /p "RETRY=        Try again? (Y/N): "
+        if /i "!RETRY!"=="Y" goto :ask_token
+        echo.
+        echo        Skill files were copied but token was NOT saved.
+        echo        The skill will NOT work until you run install.bat again
+        echo        and provide a valid token.
         goto :skip_token
     )
 
@@ -105,15 +115,24 @@ if "!NEED_TOKEN!"=="1" (
     ) else if "!HTTP_CODE!"=="000" (
         echo.
         echo        ERROR: Could not reach GitHub. Is curl installed and internet available?
-        echo        Token NOT saved. Run install.bat again when ready.
-        goto :skip_token
-    ) else (
-        echo        WARNING: Token validation failed ^(HTTP !HTTP_CODE!^).
         echo.
-        set /p "SAVE_ANYWAY=        Save anyway? (Y/N): "
+        set /p "SAVE_ANYWAY=        Save token anyway? (Y/N): "
         if /i "!SAVE_ANYWAY!"=="Y" (
             >"%TOKEN_FILE%" echo !NEW_TOKEN!
-            echo        Token saved.
+            echo        Token saved ^(not validated^).
+        ) else (
+            echo        Token NOT saved. Run install.bat again when ready.
+        )
+    ) else (
+        echo        WARNING: Token validation failed ^(HTTP !HTTP_CODE!^).
+        echo        The token may be expired or missing 'repo' scope.
+        echo.
+        set /p "RETRY2=        Enter a different token? (Y/N): "
+        if /i "!RETRY2!"=="Y" goto :ask_token
+        set /p "SAVE_ANYWAY2=        Save this token anyway? (Y/N): "
+        if /i "!SAVE_ANYWAY2!"=="Y" (
+            >"%TOKEN_FILE%" echo !NEW_TOKEN!
+            echo        Token saved ^(not validated^).
         ) else (
             echo        Token NOT saved. Run install.bat again when ready.
         )
@@ -131,13 +150,13 @@ echo.
 echo  ============================================
 echo   Installed to: %TARGET%
 echo     SKILL.md
-echo     scripts\  (4 scripts)
+echo     scripts\  (5 scripts)
 echo     references\  (6 rule files)
 echo.
 if exist "%TOKEN_FILE%" (
     echo   Token: saved at %TOKEN_FILE%
 ) else (
-    echo   Token: NOT configured (run install.bat again)
+    echo   Token: NOT configured ^(skill will not work!^)
 )
 echo  ============================================
 echo.
@@ -147,6 +166,12 @@ echo.
 echo   Usage:
 echo     - Paste a GitHub PR URL and ask Claude to review it
 echo     - Or type /review-pr in Claude Code
+echo     - Ask to "re-review" a PR after fixes
+echo.
+echo   Cost-saving tip:
+echo     This skill has detailed rules, so a smaller model works
+echo     great. Before reviewing, switch model in Claude Code:
+echo       /model sonnet   or   /model haiku
 echo.
 echo   To update your token later, just run install.bat again.
 echo.

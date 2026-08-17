@@ -24,6 +24,9 @@ until the author addresses them. Clean PRs get an `APPROVE`.
   osos-code-review repo to set up or refresh the token.
 - **Tooling:** `curl` and `jq` must be present (the scripts use them).
 - **Install:** Clone the repo and run `install.bat`. It copies files to `~/.claude/skills/osos-code-review/` and saves the token.
+- **Model:** This skill ships with detailed rules and guidelines — a smaller model handles it well.
+  Use **Sonnet** (`claude-sonnet-4-6`) or **Haiku** (`claude-haiku-4-5-20251001`) to save cost.
+  Switch before reviewing: `/model sonnet` or `/model haiku`.
 - Scripts live in `~/.claude/skills/osos-code-review/scripts/`. Reference rules live in `~/.claude/skills/osos-code-review/references/`.
 
 ## 1. Parse the PR URL
@@ -119,6 +122,69 @@ bash $HOME/.claude/skills/osos-code-review/scripts/post_comment.sh <owner> <repo
 ```
 
 Report the posted comment/review URL back to the reviewer.
+
+## 7. Re-review (follow-up after fixes)
+
+When someone asks to **re-review**, **re-check**, or **verify fixes** on a PR that was previously
+reviewed (e.g. "check if they fixed the issues on PR #123", "re-review this PR"):
+
+### 7a. Fetch current diff + previous review comments
+
+Run both in parallel:
+
+```bash
+bash $HOME/.claude/skills/osos-code-review/scripts/fetch_pr.sh <owner> <repo> <number>
+```
+
+```bash
+bash $HOME/.claude/skills/osos-code-review/scripts/fetch_review_comments.sh <owner> <repo> <number>
+```
+
+The second script returns `===REVIEWS===` (review states/bodies) and `===REVIEW_COMMENTS===`
+(inline comments with file, line, body, and thread info).
+
+### 7b. Check each previous comment
+
+For every inline comment from a prior `REQUEST_CHANGES` review:
+
+1. Find the file and area in the **current** diff.
+2. Determine the status:
+   - **Resolved** — the code was changed and the issue is fixed correctly.
+   - **Partially addressed** — an attempt was made but the fix is incomplete or introduces a new issue.
+   - **Not addressed** — the code is unchanged or the same problem remains.
+3. If the fix introduced a **new** issue, flag it as a new finding (same severity/rule format as step 4).
+
+### 7c. Present the re-review summary
+
+Show a table to the reviewer:
+
+```
+| # | Original comment                | File         | Status              |
+|---|--------------------------------|--------------|---------------------|
+| 1 | [ARCH-S1] Duplicate endpoints  | DI.cs:65     | Resolved            |
+| 2 | [PERF-5] StringComparison      | Service.cs   | Partially addressed |
+| 3 | [ARCH-H1] IHttpContextAccessor | Service.cs   | Not addressed       |
+```
+
+Then a verdict:
+- **All resolved + no new issues** → recommend posting `APPROVE`
+- **Any unresolved or new issues** → recommend posting `REQUEST_CHANGES` with updated summary
+
+Ask the reviewer how to proceed (same options as step 5) before posting.
+
+### 7d. Post the follow-up review
+
+Use the same posting mechanism (step 6). The summary body should reference it as a **follow-up review**:
+
+```
+### OSOS Standards Re-review — PR #<number>
+
+**Follow-up on previous review.**
+
+Resolved: N | Partially addressed: N | Not addressed: N | New issues: N
+
+<details per unresolved/new items>
+```
 
 ## Comment style template
 
