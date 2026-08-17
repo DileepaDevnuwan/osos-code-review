@@ -1,0 +1,6 @@
+# Sensitive / local-only
+.claude/settings.local.json
+.github_token
+
+# Sample output
+osos_review.json
