@@ -10,15 +10,16 @@ echo.
 :: Source directory (where this batch file lives)
 set "SOURCE=%~dp0"
 
-:: Target: user-level .claude\skills directory
+:: Target: user-level .claude\skills\osos-code-review directory
 set "CLAUDE_DIR=%USERPROFILE%\.claude"
-set "TARGET=%CLAUDE_DIR%\skills"
+set "TARGET=%CLAUDE_DIR%\skills\osos-code-review"
 set "TOKEN_FILE=%CLAUDE_DIR%\.github_token"
 
 :: -----------------------------------------------
 :: 1. Create target directories
 :: -----------------------------------------------
 if not exist "%CLAUDE_DIR%" mkdir "%CLAUDE_DIR%"
+if not exist "%CLAUDE_DIR%\skills" mkdir "%CLAUDE_DIR%\skills"
 if not exist "%TARGET%" mkdir "%TARGET%"
 if not exist "%TARGET%\scripts" mkdir "%TARGET%\scripts"
 if not exist "%TARGET%\references" mkdir "%TARGET%\references"
