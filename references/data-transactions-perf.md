@@ -32,3 +32,7 @@ Source: Database Transaction Handling, Performance Considerations.
 - **PERF-3** 🟡 Select only needed columns/rows (projection to DTO) for large datasets; don't pull whole entities/graphs when a projection suffices.
 - **PERF-4** 🟡 Async handlers await async services; never block with `.Result` on a query handler (also see NET-2).
 - **PERF-5** 🔵 Use `.Include()` deliberately to avoid lazy-load N+1; keep `IQueryable` filtering server-side (don't `ToList()` then filter in memory).
+- **PERF-8** 🔴 Review logic for time complexity. Minimize nested loops — prefer `O(n)` lookups (`Dictionary` / `HashSet`) over `O(n²)` scans. Pre-fetch all required data before the loop instead of querying per iteration. Flag any algorithm that grows quadratically (or worse) when a linear or log-linear approach exists.
+
+## Mapping (MAP)
+- **MAP-1** 🔴 Services and handlers must not contain inline mapping logic (manual property-by-property assignment or `CreateMap` profiles). All entity ↔ DTO / entity ↔ command mapping must be done via **extension methods** (e.g. `student.ToDto()`, `command.ToEntity()`). Flag any mapping code written directly inside a service or handler — extract it to an extension method.

@@ -6,6 +6,15 @@ Flag a violation only when the diff clearly shows it. Most of these are 🔵 nit
 ## Files (NAME-F)
 - **NAME-F1** 🔵 File names are PascalCase + `.cs` (`StudentService.cs`). Not `student.cs`, `studentService.cs`, `Student_Service.cs`.
 - **NAME-F2** 🔵 Partial/aspect files use dotted PascalCase: `StudentService.Validations.cs`, `StudentService.Validations.Add.cs`. Not `StudentServiceValidations.cs` or `StudentService_Validations.cs`.
+- **NAME-F3** 🔴 Every `.cs` file must start with the OSOS copyright header. Flag any new or modified file missing it:
+  ```
+  // ----------------------------------------------------------------------
+  // Copyright (C) 2026, by OSOS. All rights reserved.
+  // The information and source code contained herein is the exclusive
+  // property of OSOS and may not be disclosed, examined or reproduced
+  // in whole or in part without explicit written authorization from OSOS.
+  // ----------------------------------------------------------------------
+  ```
 
 ## Variables (NAME-V)
 - **NAME-V1** 🔵 Descriptive, whole-word names. `var student = ...` not `var s` / `var stdnt`. Same for lambda params: `students.Where(student => ...)` not `.Where(s => ...)`.

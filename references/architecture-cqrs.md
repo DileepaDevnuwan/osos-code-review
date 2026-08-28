@@ -3,6 +3,9 @@
 Source: 11.5 Endpoints, Maintainability & Modularity, Functionality & Business Logic, Language/Framework-Specific (.NET).
 Layered modules: `Modules/<Module>/<Module>.{Application,Domain,Infrastructure,Endpoints}`.
 
+## Module isolation — modular monolith (ARCH-M)
+- **ARCH-M1** 🔴 Modules must not reference other modules directly. A module may only reference the **Shared** module (`Modules/Shared`). Cross-module communication must go through shared contracts, MediatR events, or the shared layer — never via direct project references, `using` another module's namespace, or injecting another module's services.
+
 ## Endpoints & routing (EP)
 - **EP-1** 🟡 Endpoint grouping methods follow `Map` + `Module` + `Endpoints`: `MapStudentEndpoints`. Not `MapCrudStudentEndpoints`.
 - **EP-2** 🟡 Route groups are camelCase **plural** (`app.MapGroup("students")`), not `"Students"`.
