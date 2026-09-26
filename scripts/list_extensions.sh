@@ -3,7 +3,7 @@
 # PR code that re-implements one (ARCH-S1 / ARCH-S6 / MAP-1).
 # Usage: list_extensions.sh <owner> <repo> <base_ref> [module ...]
 #   module = folder name under src/Modules touched by the PR (e.g. Configuration Dashboard).
-# Always includes the shared layers: src/BuildingBlocks*, src/Shared*, Modules.Domain, Modules.Infrastructure.
+# Always includes the shared layers: src/BuildingBlocks*, Modules/Shared*, Modules.Domain, Modules.Infrastructure.
 # Output: one line per file — "<area>/<File>.cs: Method(this Type), Method2(this Type2)".
 # Kept compact on purpose (names only) — use search_code.sh to open a candidate. Reads the local clone only.
 set -uo pipefail
@@ -17,7 +17,7 @@ shift 3
 source "$SCRIPT_DIR/resolve_repo.sh" || exit 2
 
 paths=(
-  'src/BuildingBlocks*' 'src/Shared*'
+  'src/BuildingBlocks*' 'src/Modules/Shared*'
   'src/Modules/Modules.Domain' 'src/Modules/Modules.Infrastructure'
 )
 for module in "$@"; do

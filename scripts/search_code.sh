@@ -19,7 +19,7 @@ source "$SCRIPT_DIR/resolve_repo.sh" || exit 2
 if [[ $# -eq 0 ]]; then
   paths=('src')
 else
-  paths=('src/BuildingBlocks*' 'src/Shared*' 'src/Modules/Modules.Domain' 'src/Modules/Modules.Infrastructure')
+  paths=('src/BuildingBlocks*' 'src/Modules/Shared*' 'src/Modules/Modules.Domain' 'src/Modules/Modules.Infrastructure')
   for module in "$@"; do
     paths+=("src/Modules/${module}")
   done

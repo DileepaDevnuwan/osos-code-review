@@ -86,7 +86,7 @@ The diff alone can't show that a helper already exists — this step looks it up
 4. **Open only real matches** (read the method body) and confirm it does the same job before flagging.
 5. **Report** under `ARCH-S6` (existing helper ignored), `ARCH-S1` (duplicated within the PR or with existing code) or `MAP-1` (inline mapping). Name the existing method with `path:line` and show the one-line replacement.
    - **Compare guards.** If the existing helper has a check the new code dropped (`!IsDeleted`, status/tenant/company filter, permission check), that's a correctness bug → 🔴, and say which guard is missing. Plain duplication without a behaviour difference → 🟡.
-   - Cross-module: a module must not call another module's service directly. If the only match is in another module, suggest moving it to a shared layer (`Modules.Domain` / `BuildingBlocks`) rather than referencing it.
+   - Cross-module (ARCH-M1): a module must not call another module's service directly. If the only match is in another module, suggest moving it to a shared layer (`Modules/Shared.Domain`, `Modules.Domain`, `BuildingBlocks`) rather than referencing it.
    - If the script prints `NO_LOCAL_CLONE`, do only the in-diff duplicate check and add one summary line: "Reuse check limited to the diff (no local clone)." If it prints `WARN: origin/<base> not found`, mention results may be stale.
 
 ## 5. Show the reviewer first — never post silently
