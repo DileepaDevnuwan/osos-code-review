@@ -21,6 +21,7 @@ PR review against OSOS standards. Issues → `REQUEST_CHANGES` (blocks merge). C
 - **Tooling:** `curl`, `jq` required.
 - **Model:** Detailed rules ship with this skill — use `/model sonnet` or `/model haiku` to save cost.
 - **Paths:** Scripts: `~/.claude/skills/osos-code-review/scripts/` | Rules: `~/.claude/skills/osos-code-review/references/`
+- **Local clone (for step 4b):** found automatically if the working folder is the repo; otherwise from `~/.osos/repo_path` (set by `install.bat`). Without it, step 4b is limited to the diff.
 
 ## 1. Parse the PR URL
 
@@ -62,6 +63,31 @@ Discipline:
 - **Group repeats.** Same nit 10 times → one inline comment + "same applies elsewhere".
 - **Blockers are rare.** Reserve 🔴 for genuine correctness/security/data-loss.
 - **Be kind.** Constructive feedback, no scolding.
+
+## 4b. Reuse check (ARCH-S1 / ARCH-S6 / MAP-1)
+
+The diff alone can't show that a helper already exists — this step looks it up. Keep it cheap: only search for what the PR actually adds.
+
+1. **Pick candidates from the diff** (skip this step if there are none):
+   - new private/static helper methods and new extension methods
+   - inline mapping (property-by-property `new XDto { ... }`, `Select(x => new { ... })`) → MAP-1
+   - repeated query/predicate blocks (same `Where(...)` / lookup in 2+ places) and "load X, then load Y by X.Id" chains
+   - the same logic added twice within this PR → ARCH-S1 directly, no search needed
+2. **Get the extension index once** for the modules the PR touches (from `src/Modules/<Module>/` in ===FILES===). The shared layers are always included:
+   ```bash
+   bash $HOME/.claude/skills/osos-code-review/scripts/list_extensions.sh <owner> <repo> <base_ref> <Module> [<Module> ...]
+   ```
+   Output is one line per file: `Area/File.cs: Method(this Type), ...` (~1-2k tokens). Compare candidates by name and `this` type.
+3. **Search for each candidate** (max ~5 searches) with a narrow regex built from its key identifiers:
+   ```bash
+   bash $HOME/.claude/skills/osos-code-review/scripts/search_code.sh <owner> <repo> <base_ref> '<regex>' <Module> [<Module> ...]
+   ```
+   Example: new code loads role IDs by `UserProfileId` → `'UserProfileId == \w+.*IsDeleted|RoleIds?\w*\('`. Pass no module to search all of `src/` only when the helper would clearly be shared.
+4. **Open only real matches** (read the method body) and confirm it does the same job before flagging.
+5. **Report** under `ARCH-S6` (existing helper ignored), `ARCH-S1` (duplicated within the PR or with existing code) or `MAP-1` (inline mapping). Name the existing method with `path:line` and show the one-line replacement.
+   - **Compare guards.** If the existing helper has a check the new code dropped (`!IsDeleted`, status/tenant/company filter, permission check), that's a correctness bug → 🔴, and say which guard is missing. Plain duplication without a behaviour difference → 🟡.
+   - Cross-module: a module must not call another module's service directly. If the only match is in another module, suggest moving it to a shared layer (`Modules.Domain` / `BuildingBlocks`) rather than referencing it.
+   - If the script prints `NO_LOCAL_CLONE`, do only the in-diff duplicate check and add one summary line: "Reuse check limited to the diff (no local clone)." If it prints `WARN: origin/<base> not found`, mention results may be stale.
 
 ## 5. Show the reviewer first — never post silently
 
@@ -121,4 +147,4 @@ Summary: verdict → severity counts → non-inline notes. Keep scannable.
 ## Scope
 
 - Backend only (.NET/C#/EF Core/PostgreSQL). Frontend PRs → say so, review only what rules cover.
-- Review the diff, not the whole repo — call out when more context is needed.
+- Review the diff, not the whole repo — call out when more context is needed. The only repo-wide lookups are the targeted searches in step 4b.

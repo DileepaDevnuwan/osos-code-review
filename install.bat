@@ -27,7 +27,7 @@ if not exist "%TARGET%\references" mkdir "%TARGET%\references"
 :: -----------------------------------------------
 :: 2. Copy skill files
 :: -----------------------------------------------
-echo  [1/3] Copying skill files to %TARGET% ...
+echo  [1/4] Copying skill files to %TARGET% ...
 
 copy /Y "%SOURCE%SKILL.md" "%TARGET%\SKILL.md" >nul 2>&1
 if errorlevel 1 (
@@ -53,7 +53,7 @@ echo        Done.
 :: 3. GitHub Token Setup
 :: -----------------------------------------------
 echo.
-echo  [2/3] GitHub Token Setup
+echo  [2/4] GitHub Token Setup
 echo.
 
 set "NEED_TOKEN=1"
@@ -142,10 +142,39 @@ if "!NEED_TOKEN!"=="1" (
 :skip_token
 
 :: -----------------------------------------------
-:: 4. Summary
+:: 4. Local repo clone (optional, used by the reuse check)
 :: -----------------------------------------------
 echo.
-echo  [3/3] Installation complete!
+echo  [3/4] Local ososerp clone (optional)
+echo        Lets the review check if a PR re-implements an existing extension or helper.
+echo.
+
+set "OSOS_DIR=%USERPROFILE%\.osos"
+set "REPO_PATH_FILE=%OSOS_DIR%\repo_path"
+
+if exist "%REPO_PATH_FILE%" (
+    set /p SAVED_REPO=<"%REPO_PATH_FILE%"
+    echo        Saved path: !SAVED_REPO!
+)
+
+set "NEW_REPO="
+set /p "NEW_REPO=        Path to your ososerp clone (Enter to keep/skip): "
+
+if not "!NEW_REPO!"=="" (
+    if exist "!NEW_REPO!\.git" (
+        if not exist "%OSOS_DIR%" mkdir "%OSOS_DIR%"
+        >"%REPO_PATH_FILE%" echo !NEW_REPO!
+        echo        Saved to %REPO_PATH_FILE%
+    ) else (
+        echo        Not a git clone: !NEW_REPO! -- skipped.
+    )
+)
+
+:: -----------------------------------------------
+:: 5. Summary
+:: -----------------------------------------------
+echo.
+echo  [4/4] Installation complete!
 echo.
 echo  ============================================
 echo   Installed to: %TARGET%
